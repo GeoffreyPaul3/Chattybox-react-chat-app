@@ -1,94 +1,88 @@
-import React, {useRef, useState, useEffect} from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useHistory } from "react-router-dom";
 import { ChatEngine } from "react-chat-engine";
-import { auth } from "firebase";
-
+import { auth } from "../firebase";
+import axios from "axios";
 import { useAuth } from "../contexts/AuthContext";
-import { async } from "@firebase/util";
 
 
 const Chats = () => {
+  const history = useHistory();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
 
-    const history = useHistory();
-    const { user } = useAuth();
+  console.log(user);
 
-    console.log(user);
-
-   const handleLogout = async () => {
+  const handleLogout = async () => {
     await auth.signOut();
 
-    history.push("/")
-   }
-    
-   const getFile = async (url) => {
-      const response = await fetch(url);
-      const data = response.blob();
+    history.push("/");
+  };
 
-      return newFile ([data], "userPhoto.jpg", { type: "image/jpeg" })
-   }
+  const getFile = async (url) => {
+    const response = await fetch(url);
+    const data = await response.blob();
 
-   useEffect (() => {
+    return new File([data], "userPhoto.jpg", { type: "image/jpeg" });
+  };
+
+  useEffect(() => {
     if (!user) {
-        history.push("/");
+      history.push("/");
 
-        return;
+      return;
     }
 
-    axios.get("https://api.chatengine.io/users/me", {
+    axios
+      .get("https://api.chatengine.io/users/me", {
         headers: {
-        "project-id": process.env.REACT_APP_CHAT_ENGINE_ID,
-        "user-name": user.email,
-        "user-secret": user.uid,
-    }
-    })
-
-    .then (() => {
+          "project-id": process.env.REACT_APP_CHAT_ENGINE_ID,
+          "user-name": user.email,
+          "user-secret": user.uid,
+        },
+      })
+      .then(() => {
         setLoading(false);
-    })
-
-    .catch (() => {
+      })
+      .catch(() => {
         let formdata = new FormData();
-        formdata.append ("email", user.email);
-        formdata.append ("username", user.email);
-        formdata.append ("secret", user.uid);
+        formdata.append("email", user.email);
+        formdata.append("username", user.email);
+        formdata.append("secret", user.uid);
 
-        getFile(photoURL)
-        .then ((avatar) => {
-            formdata.append("avatar", avatar, avatar.name)
-            
-            axios.post("https://api.chatengine.io/users",
+        getFile(user.photoURL).then((avatar) => {
+          formdata.append("avatar", avatar, avatar.name);
+
+          axios
+            .post(
+              "https://api.chatengine.io/users",
               formdata,
-              { headers: {"private-key": process.env.REACT_APP_CHAT_ENGINE_KEY }}
-            
+              { headers: { "private-key": process.env.REACT_APP_CHAT_ENGINE_KEY } }
             )
-         .then (() => setLoading(false))
-         .catch ((error) => console.log(error))   
-        })
-    })
+            .then(() => setLoading(false))
+            .catch((error) => console.log(error));
+        });
+      });
+  }, [user, history]);
 
-   }, [user, history])
+  if (!user || loading) return "Loading..";
 
-
-   if (!user || loading) return "Loading.."
-
-    return (
-        <div className="chats-page">
-            <div className="nav-bar">
-                <div className="logo-tab">
-                    Chattybox
-                </div>
-                <div onClick={handleLogout} className="logout-tab">
-                    Logout
-                </div>
-            </div>
-            <ChatEngine 
-              height="calc(100vh - 66px)"
-              projectID= {process.env.REACT_APP_CHAT_ENGINE_ID}
-              userName={user.email}
-              userSecret={user.uid}
-            />
+  return (
+    <div className="chats-page">
+      <div className="nav-bar">
+        <div className="logo-tab">Chattybox</div>
+        <div onClick={handleLogout} className="logout-tab">
+          Logout
         </div>
-    );
-}
+      </div>
+      <ChatEngine
+        height="calc(100vh - 66px)"
+        projectID={process.env.REACT_APP_CHAT_ENGINE_ID}
+        userName={user.email}
+        userSecret={user.uid}
+      />
+    </div>
+  );
+};
 
 export default Chats;
